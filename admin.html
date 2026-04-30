@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal | African Real Estate Masterclass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Outfit', sans-serif; background-color: #050505; color: #e5e5e5; }
+        .gold-gradient { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); }
+        .gold-text { background: linear-gradient(135deg, #BF953F, #FCF6BA, #AA771C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-card { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(191, 149, 63, 0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8); }
+        .status-badge { padding: 4px 12px; rounded: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .luxury-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .luxury-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(191, 149, 63, 0.2); }
+        
+        #admin-content { display: none; opacity: 0; transition: opacity 0.5s ease-in; }
+        
+        /* Custom Dialogue Box */
+        #custom-dialogue { display: none; opacity: 0; transition: all 0.3s ease; }
+        #custom-dialogue.active { display: flex; opacity: 1; }
+        .dialogue-card { transform: translateY(20px); transition: all 0.3s ease; }
+        #custom-dialogue.active .dialogue-card { transform: translateY(0); }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <!-- Loading State -->
+    <div id="admin-loading" class="fixed inset-0 bg-black flex items-center justify-center z-[100]">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-xs uppercase tracking-[0.3em] font-black gold-text">Initializing Secure Portal...</p>
+        </div>
+    </div>
+
+    <!-- Main Admin Content -->
+    <div id="admin-content" class="max-w-7xl mx-auto" style="display: none; opacity: 0;">
+        <header class="flex flex-col lg:flex-row justify-between items-center mb-12 gap-8 text-center lg:text-left">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-black mb-2 tracking-tighter">Investor <span class="gold-text">Database</span></h1>
+                <p class="text-gray-500 text-xs md:text-sm tracking-[0.2em] uppercase font-bold">Prophet Prakash Pyne | Masterclass Registrations</p>
+            </div>
+            <div class="flex flex-wrap justify-center items-center gap-3">
+                <button onclick="handleLogout()" class="w-full sm:w-auto order-last sm:order-none text-gray-500 hover:text-white px-4 py-3 text-[10px] uppercase tracking-widest font-black border border-white/5 rounded-xl hover:bg-white/5 transition-all"><i class="fas fa-power-off mr-2"></i> Logout</button>
+                <button onclick="openBulkModal()" class="flex-1 sm:flex-none gold-gradient px-8 py-4 rounded-2xl text-black font-black uppercase tracking-widest text-[10px] luxury-btn whitespace-nowrap">
+                    <i class="fas fa-paper-plane mr-2"></i> Bulk Email
+                </button>
+                <button onclick="exportData()" class="flex-1 sm:flex-none bg-white/5 border border-white/10 px-8 py-4 rounded-2xl text-white font-black uppercase tracking-widest text-[10px] luxury-btn whitespace-nowrap">
+                    <i class="fas fa-file-excel mr-2 text-green-500"></i> Export Excel
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="glass-card p-6 rounded-3xl">
+                <p class="text-gray-500 text-xs uppercase tracking-widest mb-2 font-bold">Total Registrations</p>
+                <p class="text-4xl font-black gold-text" id="total-count">0</p>
+            </div>
+            <div class="glass-card p-6 rounded-3xl">
+                <p class="text-gray-500 text-xs uppercase tracking-widest mb-2 font-bold">Total Revenue (GHS)</p>
+                <p class="text-4xl font-black gold-text" id="total-revenue">0</p>
+            </div>
+            <div class="glass-card p-6 rounded-3xl">
+                <p class="text-gray-500 text-xs uppercase tracking-widest mb-2 font-bold">Conversion Rate</p>
+                <p class="text-4xl font-black gold-text">100%</p>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center">
+            <div class="relative flex-1 group w-full">
+                <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors"></i>
+                <input type="text" id="search-input" placeholder="Search by name, email or phone..." class="w-full bg-white/5 border border-white/10 p-6 pl-16 rounded-3xl text-white outline-none focus:border-blue-500/50 transition-all">
+            </div>
+            <div class="flex gap-4 w-full md:w-auto">
+                <div class="glass-card px-8 py-6 rounded-2xl flex-1 md:flex-none flex items-center gap-4">
+                    <span class="text-[10px] uppercase tracking-widest font-black text-gray-500">Filter:</span>
+                    <span class="text-xs font-bold text-blue-400">All Records</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-[2rem] overflow-hidden">
+            <div class="overflow-x-auto scrollbar-hide">
+                <table class="w-full text-left min-w-[800px]">
+                    <thead>
+                        <tr class="bg-white/5 border-b border-white/5">
+                            <th class="p-6 w-10">
+                                <input type="checkbox" id="select-all" class="rounded border-white/10 bg-white/5 text-[#BF953F] focus:ring-[#BF953F]">
+                            </th>
+                            <th class="p-6 text-xs uppercase tracking-widest text-gray-500 font-black">Date</th>
+                            <th class="p-6 text-xs uppercase tracking-widest text-gray-500 font-black">Investor</th>
+                            <th class="p-6 text-xs uppercase tracking-widest text-gray-500 font-black">Contact</th>
+                            <th class="p-6 text-xs uppercase tracking-widest text-gray-500 font-black">Status</th>
+                            <th class="p-6 text-xs uppercase tracking-widest text-gray-500 font-black text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body" class="divide-y divide-white/5">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Email Modal -->
+    <div id="bulkModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-500">
+        <div class="glass-card rounded-[3rem] w-full max-w-6xl mx-4 border-[#BF953F]/20 flex flex-col max-h-[90vh] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+            <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                <div>
+                    <h2 class="text-3xl font-black tracking-tighter">Bulk <span class="gold-text">Broadcast</span></h2>
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Targeting <span id="selected-count" class="text-blue-400">0</span> Selected Investors</p>
+                </div>
+                <button onclick="closeBulkModal()" class="w-12 h-12 rounded-full hover:bg-white/5 text-gray-500 hover:text-white transition-all"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
+                <!-- Editor -->
+                <div class="lg:w-1/2 p-8 border-r border-white/5 overflow-y-auto">
+                    <form id="bulk-email-form" class="space-y-8">
+                        <div class="space-y-3">
+                            <label class="text-[10px] uppercase tracking-widest font-black text-gray-500 ml-2">Email Subject</label>
+                            <input type="text" id="bulk-subject" required placeholder="Real Estate & Logistics Webinar Link" class="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-white outline-none focus:border-blue-500/50 transition-all">
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center px-2">
+                                <label class="text-[10px] uppercase tracking-widest font-black text-gray-500">HTML/CSS Template</label>
+                                <button type="button" onclick="loadTemplate('default')" class="text-[8px] text-blue-400 uppercase font-black tracking-widest hover:underline">Reset Template</button>
+                            </div>
+                            <textarea id="bulk-message" rows="12" class="w-full bg-white/5 border border-white/10 p-6 rounded-3xl text-gray-300 font-mono text-sm outline-none focus:border-blue-500/50 transition-all" spellcheck="false"></textarea>
+                        </div>
+                        <button type="submit" id="bulk-send-btn" class="w-full gold-gradient p-6 rounded-[2rem] text-black font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-[1.02] transition-transform">
+                            <i class="fas fa-paper-plane mr-3"></i> Deploy Broadcast
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Preview -->
+                <div class="lg:w-1/2 bg-[#0a0a0a] flex flex-col overflow-hidden">
+                    <div class="p-4 bg-white/5 border-b border-white/5 flex items-center gap-4">
+                        <div class="flex gap-2">
+                            <div class="w-2 h-2 rounded-full bg-red-500/50"></div>
+                            <div class="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-2 h-2 rounded-full bg-green-500/50"></div>
+                        </div>
+                        <span class="text-[8px] uppercase tracking-widest text-gray-500 font-black">Live Preview Engine</span>
+                    </div>
+                    <div class="flex-1 p-6 overflow-y-auto bg-gray-100 flex justify-center items-start">
+                        <div id="email-preview" class="w-full max-w-[600px] shadow-2xl bg-white min-h-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Dialogue Box -->
+    <div id="custom-dialogue" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+        <div class="dialogue-card glass-card p-10 md:p-12 rounded-[3rem] w-full max-w-md border-[#BF953F]/30 text-center relative overflow-hidden">
+            <div id="dialogue-icon" class="w-20 h-20 rounded-full flex items-center justify-center text-3xl mx-auto mb-8 shadow-2xl"></div>
+            <h3 id="dialogue-title" class="text-2xl font-black mb-4 tracking-tighter uppercase"></h3>
+            <p id="dialogue-msg" class="text-gray-400 text-sm leading-relaxed mb-10"></p>
+            <div id="dialogue-actions" class="flex flex-col gap-3"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+        // Firebase Configuration (Secured via config.js)
+        const firebaseConfig = window.CONFIG.FIREBASE;
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Security gate logic
+        const adminContent = document.getElementById('admin-content');
+        const loadingScreen = document.getElementById('admin-loading');
+
+        if (!window.CONFIG) {
+            console.error("Config missing!");
+            alert("Configuration file (config.js) not found. Please ensure it exists.");
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is authenticated
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                if (adminContent) {
+                    adminContent.style.display = 'block';
+                    setTimeout(() => adminContent.style.opacity = '1', 50);
+                }
+                startListening();
+            } else {
+                // Not authenticated, redirect to login
+                window.location.href = "login.html";
+            }
+        });
+
+        window.handleLogout = async () => {
+            await signOut(auth);
+            window.location.href = "login.html";
+        };
+
+        // Data State
+        let allUsers = [];
+        let filteredUsers = [];
+
+        function startListening() {
+            const q = query(collection(db, "registrations"), orderBy("timestamp", "desc"));
+            onSnapshot(q, (snapshot) => {
+                allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                applyFilter();
+            });
+        }
+
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', () => applyFilter());
+
+        function applyFilter() {
+            const term = searchInput.value.toLowerCase();
+            filteredUsers = allUsers.filter(user => 
+                user.name?.toLowerCase().includes(term) || 
+                user.email?.toLowerCase().includes(term) || 
+                user.phone?.includes(term)
+            );
+            renderTable(filteredUsers);
+            updateStats(filteredUsers);
+        }
+
+        function renderTable(users) {
+            const tableBody = document.getElementById('user-table-body');
+            tableBody.innerHTML = users.map(user => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="p-6">
+                        <input type="checkbox" data-id="${user.id}" class="user-checkbox rounded border-white/10 bg-white/5 text-blue-600 focus:ring-blue-500">
+                    </td>
+                    <td class="p-6 text-sm text-gray-400">
+                        ${user.timestamp?.toDate().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) || 'Pending'}
+                    </td>
+                    <td class="p-6">
+                        <p class="font-black text-white text-lg tracking-tight">${user.name}</p>
+                        <p class="text-[10px] text-blue-400 font-bold tracking-widest uppercase">${user.email}</p>
+                    </td>
+                    <td class="p-6">
+                        <p class="text-sm text-gray-400 font-medium">+${user.phone}</p>
+                    </td>
+                    <td class="p-6">
+                        <span class="status-badge bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full">Confirmed</span>
+                    </td>
+                    <td class="p-6">
+                        <div class="flex justify-end gap-3">
+                            <a href="https://wa.me/${user.phone}" target="_blank" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                            <button onclick="window.confirmDelete('${user.id}', '${user.name}')" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all shadow-lg">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            bindCheckboxes();
+        }
+
+        function updateStats(users) {
+            document.getElementById('total-count').textContent = users.length;
+            const revenue = users.reduce((acc, curr) => acc + (curr.amount || 100), 0); // Assuming 100 as base
+            document.getElementById('total-revenue').textContent = revenue.toLocaleString();
+        }
+
+        function bindCheckboxes() {
+            const selectAll = document.getElementById('select-all');
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            
+            selectAll.onchange = (e) => {
+                checkboxes.forEach(cb => cb.checked = e.target.checked);
+            };
+        }
+
+        function getSelectedUsers() {
+            const selectedIds = Array.from(document.querySelectorAll('.user-checkbox:checked')).map(cb => cb.dataset.id);
+            return allUsers.filter(u => selectedIds.includes(u.id));
+        }
+
+        // Brevo Configuration (Secured via config.js)
+        const BREVO_API_KEY = window.CONFIG.BREVO.apiKey;
+        const SENDER_EMAIL = window.CONFIG.BREVO.senderEmail;
+        const SENDER_NAME = window.CONFIG.BREVO.senderName;
+
+        window.openBulkModal = () => {
+            const selected = getSelectedUsers();
+            if (selected.length === 0) return alert("Please select at least one user from the list.");
+            
+            document.getElementById('selected-count').textContent = selected.length;
+            const modal = document.getElementById('bulkModal');
+            modal.classList.replace('opacity-0', 'opacity-100');
+            modal.classList.replace('pointer-events-none', 'pointer-events-auto');
+            
+            // Initial Preview
+            updatePreview();
+        };
+
+        window.closeBulkModal = () => {
+            const modal = document.getElementById('bulkModal');
+            modal.classList.replace('opacity-100', 'opacity-0');
+            modal.classList.replace('pointer-events-auto', 'pointer-events-none');
+        };
+
+        const messageArea = document.getElementById('bulk-message');
+        const previewArea = document.getElementById('email-preview');
+        
+        window.loadTemplate = (type) => {
+            if (type === 'default') {
+                messageArea.value = `
+<div style="background-color: #f8fafc; color: #0f172a; font-family: sans-serif; padding: 40px 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px; border: 1px solid #e2e8f0;">
+        <h1 style="color: #1e40af; font-size: 24px;">Webinar Link: Real Estate & Logistics</h1>
+        <p>Hello <strong>User Name</strong>,</p>
+        <p>This is the official link to join our webinar tomorrow at 7:30 PM GMT.</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://zoom.us/j/yourlink" style="background: #1e40af; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">JOIN WEBINAR NOW</a>
+        </div>
+        <p>See you there!</p>
+        <p><strong>Prakash Pyne</strong></p>
+    </div>
+</div>`.trim();
+                updatePreview();
+            }
+        };
+
+        function updatePreview() {
+            previewArea.innerHTML = messageArea.value;
+        }
+
+        messageArea.addEventListener('input', updatePreview);
+        loadTemplate('default');
+
+        // Custom Dialogue System
+        window.showDialogue = ({ title, msg, type, actions }) => {
+            const dialogue = document.getElementById('custom-dialogue');
+            const icon = document.getElementById('dialogue-icon');
+            const titleEl = document.getElementById('dialogue-title');
+            const msgEl = document.getElementById('dialogue-msg');
+            const actionsEl = document.getElementById('dialogue-actions');
+
+            titleEl.textContent = title;
+            msgEl.textContent = msg;
+            
+            // Icon Styling
+            icon.className = 'w-20 h-20 rounded-full flex items-center justify-center text-3xl mx-auto mb-8 shadow-2xl ' + 
+                            (type === 'success' ? 'bg-green-500/10 text-green-400' : 
+                             type === 'danger' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400');
+            icon.innerHTML = type === 'success' ? '<i class="fas fa-check"></i>' : 
+                            type === 'danger' ? '<i class="fas fa-exclamation-triangle"></i>' : '<i class="fas fa-info-circle"></i>';
+
+            // Actions
+            actionsEl.innerHTML = actions.map(action => `
+                <button onclick="${action.cb}" class="w-full p-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all ${action.style === 'danger' ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white/5 text-white hover:bg-white/10'}">
+                    ${action.label}
+                </button>
+            `).join('') + `
+                <button onclick="window.closeDialogue()" class="w-full p-5 rounded-2xl font-black uppercase tracking-widest text-[10px] text-gray-500 hover:text-white transition-all">
+                    Cancel
+                </button>
+            `;
+
+            dialogue.classList.add('active');
+        };
+
+        window.closeDialogue = () => {
+            document.getElementById('custom-dialogue').classList.remove('active');
+        };
+
+        window.confirmDelete = (id, name) => {
+            showDialogue({
+                title: 'Delete Investor',
+                msg: `Are you sure you want to permanently remove ${name} from the database? This action cannot be undone.`,
+                type: 'danger',
+                actions: [
+                    { label: 'Delete Permanently', cb: `window.deleteUser('${id}')`, style: 'danger' }
+                ]
+            });
+        };
+
+        window.deleteUser = async (id) => {
+            closeDialogue();
+            try {
+                await deleteDoc(doc(db, "registrations", id));
+                showDialogue({
+                    title: 'Record Deleted',
+                    msg: 'The investor record has been successfully removed.',
+                    type: 'success',
+                    actions: [{ label: 'Confirm', cb: 'window.closeDialogue()', style: 'default' }]
+                });
+            } catch (err) {
+                alert("Deletion failed: " + err.message);
+            }
+        };
+
+        document.getElementById('bulk-email-form').onsubmit = async function(e) {
+            e.preventDefault();
+            const subject = document.getElementById('bulk-subject').value;
+            const html = document.getElementById('bulk-message').value;
+            const btn = document.getElementById('bulk-send-btn');
+            
+            const selectedUsers = getSelectedUsers();
+            if (selectedUsers.length === 0) return alert("No users selected.");
+            
+            showDialogue({
+                title: 'Confirm Broadcast',
+                msg: `You are about to send an email to ${selectedUsers.length} selected investors. Proceed?`,
+                type: 'info',
+                actions: [
+                    { label: 'Send Now', cb: 'window.executeBroadcast()', style: 'default' }
+                ]
+            });
+        };
+
+        window.executeBroadcast = async () => {
+            closeDialogue();
+            const subject = document.getElementById('bulk-subject').value;
+            const html = document.getElementById('bulk-message').value;
+            const btn = document.getElementById('bulk-send-btn');
+            const selectedUsers = getSelectedUsers();
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deploying...';
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const user of selectedUsers) {
+                try {
+                    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+                        method: 'POST',
+                        headers: { 'accept': 'application/json', 'content-type': 'application/json', 'api-key': BREVO_API_KEY },
+                        body: JSON.stringify({
+                            sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+                            to: [{ email: user.email, name: user.name }],
+                            subject: subject,
+                            htmlContent: html.replace(/User Name/g, user.name)
+                        })
+                    });
+                    if (response.ok) successCount++;
+                    else errorCount++;
+                } catch (err) { errorCount++; }
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane mr-3"></i> Deploy Broadcast';
+            
+            showDialogue({
+                title: 'Broadcast Summary',
+                msg: `Transmission complete.\nSuccess: ${successCount}\nFailed: ${errorCount}`,
+                type: successCount > 0 ? 'success' : 'danger',
+                actions: [{ label: 'Finish', cb: 'window.finalizeBroadcast()', style: 'default' }]
+            });
+        };
+
+        window.finalizeBroadcast = () => {
+            closeDialogue();
+            closeBulkModal();
+        };
+        
+        // Professional Excel Export (SheetJS)
+        window.exportData = () => {
+            if (allUsers.length === 0) return alert("No data to export.");
+            
+            const data = allUsers.map(u => ({
+                'Date': u.timestamp?.toDate().toLocaleDateString(),
+                'Investor Name': u.name,
+                'Email Address': u.email,
+                'WhatsApp Number': '+' + u.phone,
+                'Amount Paid (GHS)': u.amount,
+                'Transaction Ref': u.reference
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Registrations");
+
+            /* Fix column widths */
+            const wscols = [
+                {wch: 15}, {wch: 25}, {wch: 30}, {wch: 20}, {wch: 15}, {wch: 20}
+            ];
+            worksheet['!cols'] = wscols;
+
+            XLSX.writeFile(workbook, "Masterclass_Investors_Circle.xlsx");
+        };
+    </script>
+</body>
+</html>
