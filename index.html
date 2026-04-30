@@ -427,32 +427,19 @@
         // Initialize Firebase safely
         let app, db, analytics;
         try {
-            const firebaseConfig = window.CONFIG?.FIREBASE;
-            if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_FIREBASE_API_KEY") {
+            if (firebaseConfig && firebaseConfig.apiKey) {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 analytics = getAnalytics(app);
-            } else {
-                console.warn("Configuration missing. Some features may be disabled.");
-                document.body.insertAdjacentHTML('afterbegin', `
-                    <div id="config-warning" class="bg-red-600 text-white p-2 text-[8px] text-center uppercase tracking-[0.3em] font-black fixed top-0 w-full z-[9999]">
-                        System Error: Secure Configuration Not Loaded. Please check deployment settings.
-                    </div>
-                `);
             }
         } catch (e) {
             console.error("Firebase Initialization Failed:", e);
         }
 
         // Brevo Configuration (Secured via config.js)
-        const BREVO_API_KEY = window.CONFIG?.BREVO?.apiKey || "";
-        const SENDER_EMAIL = window.CONFIG?.BREVO?.senderEmail || "";
-        const SENDER_NAME = window.CONFIG?.BREVO?.senderName || "";
-
-        // Initial reveal fallback
-        setTimeout(() => {
-            document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
-        }, 3000); // Force show after 3s if animations fail
+        const BREVO_API_KEY = window.CONFIG.BREVO.apiKey;
+        const SENDER_EMAIL = window.CONFIG.BREVO.senderEmail;
+        const SENDER_NAME = window.CONFIG.BREVO.senderName;
 
         // Global Country Data
         const countryData = [

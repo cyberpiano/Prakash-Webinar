@@ -1,7 +1,6 @@
 # ============================================================
 # SECRET FILES - NEVER COMMIT THESE
 # Secret configuration file
-config.js
 config.local.js
 
 # Environment variable files
